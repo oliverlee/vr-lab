@@ -13,6 +13,67 @@ where
     corners_in_hmd.fold(first, |b, p| b.enclose(p))
 }
 
+trait MaxAssign {
+    fn max_assign(&mut self, other: Self);
+}
+
+impl MaxAssign for f64 {
+    #[inline]
+    fn max_assign(&mut self, other: Self) {
+        if other > *self {
+            *self = other;
+        }
+    }
+}
+
+trait MinAssign {
+    fn min_assign(&mut self, other: Self);
+}
+
+impl MinAssign for f64 {
+    #[inline]
+    fn min_assign(&mut self, other: Self) {
+        if other < *self {
+            *self = other;
+        }
+    }
+}
+
+fn compute_bounding_frustrum<I>(clp_to_hmd: I) -> Frustrum<f64>
+where
+    I: IntoIterator<Item = Matrix4<f64>>,
+{
+    let points: Vec<Point3<f64>> = clp_to_hmd
+        .into_iter()
+        .flat_map(|clp_to_hmd| {
+            Frustrum::corners_in_clp(DEPTH_RANGE)
+                .iter()
+                .map(|&pos_in_clp| clp_to_hmd.transform_point(pos_in_clp))
+        })
+        .collect();
+
+    assert!(points.len() > 0, "This is not going to work without any points.");
+
+    let mut min_x0_idx = 0;
+    let mut max_x1_idx = 0;
+    let mut min_y0_idx = 0;
+    let mut max_y1_idx = 0;
+    for (i, &p) in points.iter().enumerate().skip(1) {
+        if p.x < points[min_x0_idx].x {
+            min_x0_idx = i;
+        }
+        if p.x > points[max_x1_idx].x {
+            max_x1_idx = i;
+        }
+        if p.y < points[min_y0_idx].y {
+            min_y0_idx = i;
+        }
+        if p.y > points[max_y1_idx].y {
+            max_y1_idx = i;
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ClusterData {
     pub dimensions: Vector3<u32>,
